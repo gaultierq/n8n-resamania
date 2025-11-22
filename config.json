@@ -1,0 +1,60 @@
+{
+  "resamania": {
+    "base_url": "https://member.resamania.com",
+    "api_url": "https://api.resamania.com",
+    "login_url": "https://api.resamania.com/oauth/login/fitnesstraining?client_id=26_2532ba2d23446346e4f83dda1570fdd224ce70c546251c4ce84bd734e0e18811&redirect_uri=https://member.resamania.com/&response_type=code",
+    "planning_url": "https://member.resamania.com/fitnesstraining/planning?club=%2Ffitnesstraining%2Fclubs%2F528",
+    "club_id": "/fitnesstraining/clubs/528"
+  },
+  "target_classes": [
+    {
+      "day": "Monday",
+      "time": "12:30",
+      "activity": "CAF",
+      "duration_minutes": 45,
+      "enabled": true
+    },
+    {
+      "day": "Tuesday",
+      "time": "12:30",
+      "activity": "RPM",
+      "duration_minutes": 45,
+      "enabled": true
+    },
+    {
+      "day": "Wednesday",
+      "time": "12:30",
+      "activity": "CAF",
+      "duration_minutes": 45,
+      "enabled": true
+    },
+    {
+      "day": "Thursday",
+      "time": "12:30",
+      "activity": "Body Pump",
+      "duration_minutes": 45,
+      "enabled": true
+    },
+    {
+      "day": "Friday",
+      "time": "09:15",
+      "activity": "RPM",
+      "duration_minutes": 45,
+      "enabled": true
+    }
+  ],
+  "booking_settings": {
+    "auto_book": true,
+    "max_advance_days": 7,
+    "retry_on_failure": false,
+    "retry_attempts": 3,
+    "retry_delay_seconds": 5,
+    "headless": false,
+    "slow_mo": 100
+  },
+  "notification_settings": {
+    "notify_on_success": true,
+    "notify_on_failure": true,
+    "notify_on_slot_found": false
+  }
+}

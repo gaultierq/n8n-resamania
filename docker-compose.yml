@@ -1,0 +1,23 @@
+services:
+  resamania:
+    build: .
+    container_name: resamania-auto-booking
+    restart: unless-stopped
+    environment:
+      - RESAMANIA_USERNAME=${RESAMANIA_USERNAME}
+      - RESAMANIA_PASSWORD=${RESAMANIA_PASSWORD}
+      - LOG_LEVEL=INFO
+      - HEADLESS_BROWSER=true
+    volumes:
+      # Persist session data
+      - ./data:/app/data
+      # Persist logs
+      - ./logs:/app/logs
+      # Config file
+      - ./config.json:/app/config.json:ro
+    command: node dist/scheduler.js
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

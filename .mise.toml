@@ -1,0 +1,7 @@
+[tools]
+node = "20"
+yarn = "latest"
+
+[env]
+EDITOR = "webstorm"
+DOCKER_CONTEXT = "n8n"

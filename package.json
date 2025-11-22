@@ -1,0 +1,35 @@
+{
+  "name": "resamania-auto-booking",
+  "version": "1.0.0",
+  "description": "Automatic booking system for Resamania fitness classes",
+  "main": "dist/main.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "start:scheduler": "node dist/scheduler.js",
+    "dev": "tsx src/main.ts",
+    "dev:scheduler": "tsx src/scheduler.ts",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "resamania",
+    "automation",
+    "booking",
+    "playwright"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "node-cron": "^3.0.3",
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
