@@ -13,8 +13,8 @@ services:
       - ./data:/app/data
       # Persist logs
       - ./logs:/app/logs
-      # Config file
-      - ./config.json:/app/config.json:ro
+#      # Config file
+#      - ./config.json:/app/config.json:ro
     command: node dist/scheduler.js
     logging:
       driver: "json-file"

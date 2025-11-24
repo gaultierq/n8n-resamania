@@ -49,7 +49,7 @@
     "retry_on_failure": false,
     "retry_attempts": 3,
     "retry_delay_seconds": 5,
-    "headless": false,
+    "headless": true,
     "slow_mo": 100
   },
   "notification_settings": {

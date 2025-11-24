@@ -51,14 +51,22 @@ class BookingScheduler {
       await this.runBooking();
     });
 
-    // Run at minute 01 of every hour
-    cron.schedule('1 * * * *', async () => {
-      console.log('\n[CRON TRIGGER] Running at :01');
-      await this.runBooking();
+    // Run at minute 59 of every hour
+    cron.schedule('59 * * * *', async () => {
+      setTimeout(async () => {
+        console.log('\n[CRON TRIGGER] Running at :59');
+        await this.runBooking();
+      }, 30000)
     });
 
     console.log('\n✓ Scheduler is running and waiting for scheduled times...');
     console.log('Next runs will be at the top of each hour (:00 and :01)\n');
+
+    console.log('Running it once, to verify it works\n');
+
+    this.runBooking().then(() => {
+      console.log('Looking good\n');
+    });
   }
 }
 

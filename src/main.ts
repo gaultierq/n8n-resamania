@@ -106,10 +106,19 @@ export class ResamaniaBooker {
     console.log('Starting Resamania automated booking...');
     console.log('='.repeat(60));
 
+    // Use environment variable for headless mode, fallback to config, default to true
+    const headlessMode = process.env.HEADLESS_BROWSER === 'false'
+      ? false
+      : (process.env.HEADLESS_BROWSER === 'true'
+        ? true
+        : (this.config.booking_settings?.headless ?? true));
+
     const browser = await chromium.launch({
-      headless: this.config.booking_settings?.headless ?? true,
+      headless: headlessMode,
       slowMo: this.config.booking_settings?.slow_mo ?? 100
     });
+
+    console.log(`Browser mode: ${headlessMode ? 'headless' : 'headed'}`);
 
     try {
       // Create browser context
