@@ -3,7 +3,7 @@
     "base_url": "https://member.resamania.com",
     "api_url": "https://api.resamania.com",
     "login_url": "https://api.resamania.com/oauth/login/fitnesstraining?client_id=26_2532ba2d23446346e4f83dda1570fdd224ce70c546251c4ce84bd734e0e18811&redirect_uri=https://member.resamania.com/&response_type=code",
-    "planning_url": "https://member.resamania.com/fitnesstraining/planning?club=%2Ffitnesstraining%2Fclubs%2F528",
+    "planning_url": "https://member.resamania.com/fitnesstraining/planning",
     "club_id": "/fitnesstraining/clubs/528"
   },
   "target_classes": [
