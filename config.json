@@ -41,6 +41,13 @@
       "activity": "RPM",
       "duration_minutes": 45,
       "enabled": true
+    },
+    {
+      "day": "Saturday",
+      "time": "09:30",
+      "activity": "Body Pump",
+      "duration_minutes": 45,
+      "enabled": true
     }
   ],
   "booking_settings": {

@@ -53,7 +53,7 @@ class BookingScheduler {
     // Schedule 1: Daily at 11:59 AM Paris time with 15 retries
     cron.schedule('59 11 * * *', async () => {
       console.log('\n[CRON TRIGGER] Daily 11:59 AM Paris time run');
-      await this.runBooking(15, 'Daily high-retry booking at 11:59 AM Paris');
+      await this.runBooking(45, 'Daily high-retry booking at 11:59 AM Paris');
     }, {
       timezone: 'Europe/Paris'
     });
