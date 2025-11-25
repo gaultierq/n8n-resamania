@@ -168,25 +168,32 @@ export class ResamaniaSlotBooker {
    * Filter slots that match target classes
    */
   filterMatchingSlots(allSlots: SlotInfo[]): SlotInfo[] {
+    // First filter by target class matching
     const matchingSlots = allSlots.filter(slot => this.matchesTargetClass(slot));
     console.log(`Matching target classes: ${matchingSlots.length}`);
+
+    // Then filter by time constraints
+    const timeFilteredSlots = matchingSlots.filter(slot => this.meetsTimeConstraints(slot));
+    console.log(`After time filtering (4h min, 4d max): ${timeFilteredSlots.length}`);
     console.log('='.repeat(60));
 
-    if (matchingSlots.length === 0) {
-      console.log('\nNo matching slots found to book.');
+    if (timeFilteredSlots.length === 0) {
+      console.log('\nNo matching slots found to book after applying filters.');
       return [];
     }
 
     // Display matching slots
     console.log('\nMatching slots:');
-    for (const slot of matchingSlots) {
+    for (const slot of timeFilteredSlots) {
       const availIcon = slot.is_available ? '✓ BOOKABLE' : '✗ NOT AVAILABLE';
-      console.log(`  ${availIcon} - ${slot.day_of_week} ${slot.time} - ${slot.activity_name}`);
+      const slotDate = this.parseSlotDateTime(slot);
+      const hoursFromNow = slotDate ? ((slotDate.getTime() - Date.now()) / (1000 * 60 * 60)).toFixed(1) : '?';
+      console.log(`  ${availIcon} - ${slot.day_of_week} ${slot.time} - ${slot.activity_name} (in ${hoursFromNow}h)`);
       console.log(`    Status: ${slot.status}`);
       console.log(`    Location: ${slot.club_name} / ${slot.studio_name}`);
     }
 
-    return matchingSlots;
+    return timeFilteredSlots;
   }
 
   /**
@@ -295,5 +302,107 @@ export class ResamaniaSlotBooker {
     }
 
     return false;
+  }
+
+  /**
+   * Parse slot date and time into a Date object
+   */
+  private parseSlotDateTime(slot: SlotInfo): Date | null {
+    try {
+      // Parse the date string (e.g., "Monday 25 November")
+      // The format appears to be: "DayOfWeek DD Month" or "DayOfWeek DD"
+      const dateStr = slot.date.trim();
+      const timeStr = slot.time.trim();
+
+      // Extract day and month from the date string
+      const dateMatch = dateStr.match(/(\d{1,2})(?:\s+(\w+))?/);
+      if (!dateMatch) {
+        console.warn(`Could not parse date: ${dateStr}`);
+        return null;
+      }
+
+      const day = parseInt(dateMatch[1], 10);
+      const monthName = dateMatch[2];
+
+      // Parse time (e.g., "12:30")
+      const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+      if (!timeMatch) {
+        console.warn(`Could not parse time: ${timeStr}`);
+        return null;
+      }
+
+      const hour = parseInt(timeMatch[1], 10);
+      const minute = parseInt(timeMatch[2], 10);
+
+      // Create date object
+      const now = new Date();
+      const slotDate = new Date();
+      slotDate.setHours(hour, minute, 0, 0);
+
+      // If month name is provided, use it
+      if (monthName) {
+        const monthMap: { [key: string]: number } = {
+          'january': 0, 'february': 1, 'march': 2, 'april': 3,
+          'may': 4, 'june': 5, 'july': 6, 'august': 7,
+          'september': 8, 'october': 9, 'november': 10, 'december': 11
+        };
+        const month = monthMap[monthName.toLowerCase()];
+        if (month !== undefined) {
+          slotDate.setMonth(month);
+          slotDate.setDate(day);
+
+          // If the date is in the past, it must be next year
+          if (slotDate < now) {
+            slotDate.setFullYear(slotDate.getFullYear() + 1);
+          }
+        }
+      } else {
+        // No month provided, just use the day
+        slotDate.setDate(day);
+
+        // If the date is in the past, assume it's next month
+        if (slotDate < now) {
+          slotDate.setMonth(slotDate.getMonth() + 1);
+        }
+      }
+
+      return slotDate;
+    } catch (error) {
+      console.warn(`Error parsing slot date/time: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Check if slot meets time constraints:
+   * - Not sooner than 4 hours from now
+   * - Not more than 4 days from now
+   */
+  private meetsTimeConstraints(slot: SlotInfo): boolean {
+    const slotDate = this.parseSlotDateTime(slot);
+    if (!slotDate) {
+      console.warn(`Skipping slot due to unparseable date: ${slot.date} ${slot.time}`);
+      return false;
+    }
+
+    const now = new Date();
+    const fourHoursFromNow = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    const fourDaysFromNow = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000);
+
+    // Check if too soon (within 4 hours)
+    if (slotDate < fourHoursFromNow) {
+      const hoursFromNow = ((slotDate.getTime() - now.getTime()) / (1000 * 60 * 60)).toFixed(1);
+      console.log(`  ⊘ Skipping ${slot.activity_name} (${slot.day_of_week} ${slot.time}) - too soon (${hoursFromNow}h < 4h)`);
+      return false;
+    }
+
+    // Check if too far (more than 4 days)
+    if (slotDate > fourDaysFromNow) {
+      const daysFromNow = ((slotDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)).toFixed(1);
+      console.log(`  ⊘ Skipping ${slot.activity_name} (${slot.day_of_week} ${slot.time}) - too far (${daysFromNow}d > 4d)`);
+      return false;
+    }
+
+    return true;
   }
 }
