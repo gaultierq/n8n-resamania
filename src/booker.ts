@@ -357,12 +357,54 @@ export class ResamaniaSlotBooker {
           }
         }
       } else {
-        // No month provided, just use the day
-        slotDate.setDate(day);
+        // No month provided, use day of week to calculate the correct date
+        // Map day of week to day number (0 = Sunday, 6 = Saturday)
+        const dayOfWeekMap: { [key: string]: number } = {
+          'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
+          'thursday': 4, 'friday': 5, 'saturday': 6
+        };
 
-        // If the date is in the past, assume it's next month
-        if (slotDate < now) {
-          slotDate.setMonth(slotDate.getMonth() + 1);
+        const targetDayOfWeek = dayOfWeekMap[slot.day_of_week.toLowerCase()];
+
+        if (targetDayOfWeek !== undefined) {
+          // Calculate days until the target day of week
+          const currentDayOfWeek = now.getDay();
+          let daysUntil = targetDayOfWeek - currentDayOfWeek;
+
+          // If the target day is today or in the past this week, it must be next week
+          if (daysUntil < 0) {
+            daysUntil += 7;
+          } else if (daysUntil === 0) {
+            // Same day of week - check if the time has passed
+            const todayAtSlotTime = new Date();
+            todayAtSlotTime.setHours(hour, minute, 0, 0);
+            if (todayAtSlotTime < now) {
+              // Time has passed today, must be next week
+              daysUntil = 7;
+            }
+          }
+
+          // Set the date to the calculated future date
+          slotDate.setDate(now.getDate() + daysUntil);
+
+          // Verify the day number matches if we can
+          if (day && slotDate.getDate() !== day) {
+            // The day number doesn't match this week, try next week
+            slotDate.setDate(now.getDate() + daysUntil + 7);
+
+            // If still doesn't match, log warning but use what we calculated
+            if (slotDate.getDate() !== day) {
+              console.warn(`Date mismatch: expected day ${day}, got ${slotDate.getDate()} for ${slot.day_of_week}`);
+            }
+          }
+        } else {
+          // Fallback: just use the day number
+          slotDate.setDate(day);
+
+          // If the date is in the past, assume it's next month
+          if (slotDate < now) {
+            slotDate.setMonth(slotDate.getMonth() + 1);
+          }
         }
       }
 
