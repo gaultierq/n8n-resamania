@@ -173,7 +173,8 @@ export class ResamaniaSlotBooker {
     console.log(`Matching target classes: ${matchingSlots.length}`);
 
     // Then filter by time constraints
-    const timeFilteredSlots = matchingSlots.filter(slot => this.meetsTimeConstraints(slot));
+    // const timeFilteredSlots = matchingSlots.filter(slot => this.meetsTimeConstraints(slot));
+    const timeFilteredSlots = matchingSlots;
     console.log(`After time filtering (4h min, 4d max): ${timeFilteredSlots.length}`);
     console.log('='.repeat(60));
 
