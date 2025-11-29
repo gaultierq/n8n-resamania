@@ -415,37 +415,4 @@ export class ResamaniaSlotBooker {
       return null;
     }
   }
-
-  /**
-   * Check if slot meets time constraints:
-   * - Not sooner than 4 hours from now
-   * - Not more than 4 days from now
-   */
-  private meetsTimeConstraints(slot: SlotInfo): boolean {
-    const slotDate = this.parseSlotDateTime(slot);
-    if (!slotDate) {
-      console.warn(`Skipping slot due to unparseable date: ${slot.date} ${slot.time}`);
-      return false;
-    }
-
-    const now = new Date();
-    const fourHoursFromNow = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-    const fourDaysFromNow = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000);
-
-    // Check if too soon (within 4 hours)
-    if (slotDate < fourHoursFromNow) {
-      const hoursFromNow = ((slotDate.getTime() - now.getTime()) / (1000 * 60 * 60)).toFixed(1);
-      console.log(`  ⊘ Skipping ${slot.activity_name} (${slot.day_of_week} ${slot.time}) - too soon (${hoursFromNow}h < 4h)`);
-      return false;
-    }
-
-    // Check if too far (more than 4 days)
-    if (slotDate > fourDaysFromNow) {
-      const daysFromNow = ((slotDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)).toFixed(1);
-      console.log(`  ⊘ Skipping ${slot.activity_name} (${slot.day_of_week} ${slot.time}) - too far (${daysFromNow}d > 4d)`);
-      return false;
-    }
-
-    return true;
-  }
 }
