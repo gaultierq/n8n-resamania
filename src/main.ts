@@ -7,7 +7,7 @@ import { chromium } from 'playwright';
 import { readFileSync } from 'fs';
 import * as dotenv from 'dotenv';
 import { ResamaniaAuth } from './auth.js';
-import { ResamaniaSlotBooker, TargetClass } from './booker.js';
+import { ResamaniaSlotBooker, TargetClass, BookingSettings } from './booker.js';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -29,6 +29,8 @@ interface Config {
   booking_settings: {
     headless: boolean;
     slow_mo: number;
+    min_hours_from_now?: number;
+    max_days_from_now?: number;
   };
   username?: string;
   password?: string;
@@ -121,8 +123,12 @@ export class ResamaniaBooker {
         console.log(`✓ Session valid! On page: ${page.url()}`);
       }
 
-      // Create slot booker
-      const slotBooker = new ResamaniaSlotBooker(this.config.target_classes || []);
+      // Create slot booker with booking settings
+      const bookingSettings: BookingSettings = {
+        minHoursFromNow: this.config.booking_settings?.min_hours_from_now,
+        maxDaysFromNow: this.config.booking_settings?.max_days_from_now
+      };
+      const slotBooker = new ResamaniaSlotBooker(this.config.target_classes || [], bookingSettings);
 
       // Retry logic: keep trying maxRetries times or until we book something
       const RETRY_INTERVAL_MS = 1000; // 1 second
@@ -150,7 +156,7 @@ export class ResamaniaBooker {
         const allSlots = await slotBooker.listSlots(page);
 
         // Filter matching slots
-        const matchingSlots = slotBooker.filterMatchingSlots(allSlots);
+        const matchingSlots = slotBooker.filterMatchingSlots({ allSlots: allSlots });
 
         if (matchingSlots.length === 0) {
           console.log('No matching slots found. Waiting before retry...');

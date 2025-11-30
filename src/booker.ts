@@ -2,15 +2,22 @@
  * Resamania Booker - Handles slot listing and booking
  */
 
-import { Page } from 'playwright';
+import { Page } from 'playwright'
+import {
+  parseSlotDateTime,
+  extractDateFromCardText,
+  extractDayOfWeekFromCardText,
+  meetsTimeConstraints as checkTimeConstraints,
+  hoursFromNow,
+  daysFromNow,
+} from './utils'
 
 export interface SlotInfo {
   activity_name: string;
   date: string;
   time: string;
+  at: Date;
   day_of_week: string;
-  club_name: string;
-  studio_name: string;
   status: string;
   is_available: boolean;
   card_element: any; // Playwright element handle
@@ -30,11 +37,20 @@ export interface BookingResult {
   totalMatching: number;
 }
 
+export interface BookingSettings {
+  minHoursFromNow?: number;
+  maxDaysFromNow?: number;
+}
+
 export class ResamaniaSlotBooker {
   private targetClasses: TargetClass[];
+  private minHoursFromNow: number;
+  private maxDaysFromNow: number;
 
-  constructor(targetClasses: TargetClass[]) {
+  constructor(targetClasses: TargetClass[], settings?: BookingSettings) {
     this.targetClasses = targetClasses;
+    this.minHoursFromNow = settings?.minHoursFromNow ?? 6;
+    this.maxDaysFromNow = settings?.maxDaysFromNow ?? 4;
   }
 
   /**
@@ -63,6 +79,9 @@ export class ResamaniaSlotBooker {
       const card = activityCards[i];
 
       try {
+        // Get full card text first (used for multiple extractions)
+        const cardText = await card.innerText();
+
         // Extract activity name
         const activityHeading = await card.$('h3');
         if (!activityHeading) continue;
@@ -72,24 +91,9 @@ export class ResamaniaSlotBooker {
         const timeHeading = await card.$('h5');
         const classTime = timeHeading ? (await timeHeading.innerText()).trim() : 'Unknown';
 
-        // Extract paragraphs (date, club, studio)
-        const paragraphs = await card.$$('p');
-        let dateText = 'Unknown';
-        let clubName = 'Unknown';
-        let studioName = 'Unknown';
-
-        if (paragraphs.length > 0) {
-          dateText = (await paragraphs[0].innerText()).trim();
-        }
-        if (paragraphs.length > 2) {
-          clubName = (await paragraphs[2].innerText()).trim();
-        }
-        if (paragraphs.length > 3) {
-          studioName = (await paragraphs[3].innerText()).trim();
-        }
-
-        // Get full card text for status and day parsing
-        const cardText = await card.innerText();
+        // Extract date and day of week from card text (not relying on paragraph order)
+        const dateText = extractDateFromCardText(cardText);
+        const dayOfWeek = extractDayOfWeekFromCardText(cardText);
 
         // Determine status
         let statusText = 'Available';
@@ -108,41 +112,18 @@ export class ResamaniaSlotBooker {
         const bookButton = await card.$('button:has-text("Book")');
         const isAvailable = bookButton !== null;
 
-        // Extract day of week from card text
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        let dayOfWeek = 'Unknown';
-        const cardTextLower = cardText.toLowerCase();
-
-        for (const day of days) {
-          const dayLower = day.toLowerCase();
-          // Look for day name followed by digits (date pattern)
-          const pattern = new RegExp(`${dayLower}\\s+\\d{1,2}`, 'i');
-          if (pattern.test(cardText)) {
-            dayOfWeek = day;
-            break;
-          }
-        }
-
-        // Fallback: simple substring match
-        if (dayOfWeek === 'Unknown') {
-          for (const day of days) {
-            if (cardTextLower.includes(day.toLowerCase())) {
-              dayOfWeek = day;
-              break;
-            }
-          }
-        }
+        // Parse the date
+        const slotDate = parseSlotDateTime(dateText, classTime);
 
         const slotInfo: SlotInfo = {
           activity_name: activityName,
           date: dateText,
           time: classTime,
           day_of_week: dayOfWeek,
-          club_name: clubName,
-          studio_name: studioName,
           status: statusText,
           is_available: isAvailable,
-          card_element: card
+          card_element: card,
+          at: slotDate,
         };
 
         allSlots.push(slotInfo);
@@ -150,7 +131,7 @@ export class ResamaniaSlotBooker {
         // Verbose logging
         console.log(`  [${i + 1}] ${dayOfWeek} ${classTime} - ${activityName}`);
         console.log(`      Status: ${statusText}, Available: ${isAvailable}`);
-        console.log(`      Location: ${clubName} / ${studioName}`);
+        console.log(`      Date: ${slotInfo.at}`);
 
       } catch (error) {
         console.warn(`⚠ Error parsing card ${i + 1}: ${error}`);
@@ -167,14 +148,13 @@ export class ResamaniaSlotBooker {
   /**
    * Filter slots that match target classes
    */
-  filterMatchingSlots(allSlots: SlotInfo[]): SlotInfo[] {
+  filterMatchingSlots({ allSlots }: { allSlots: SlotInfo[] }): SlotInfo[] {
     // First filter by target class matching
     const matchingSlots = allSlots.filter(slot => this.matchesTargetClass(slot));
     console.log(`Matching target classes: ${matchingSlots.length}`);
 
     // Then filter by time constraints
-    // const timeFilteredSlots = matchingSlots.filter(slot => this.meetsTimeConstraints(slot));
-    const timeFilteredSlots = matchingSlots;
+    const timeFilteredSlots = matchingSlots.filter(slot => this.meetsTimeConstraints(slot));
     console.log(`After time filtering (4h min, 4d max): ${timeFilteredSlots.length}`);
     console.log('='.repeat(60));
 
@@ -187,11 +167,9 @@ export class ResamaniaSlotBooker {
     console.log('\nMatching slots:');
     for (const slot of timeFilteredSlots) {
       const availIcon = slot.is_available ? '✓ BOOKABLE' : '✗ NOT AVAILABLE';
-      const slotDate = this.parseSlotDateTime(slot);
-      const hoursFromNow = slotDate ? ((slotDate.getTime() - Date.now()) / (1000 * 60 * 60)).toFixed(1) : '?';
-      console.log(`  ${availIcon} - ${slot.day_of_week} ${slot.time} - ${slot.activity_name} (in ${hoursFromNow}h)`);
+      const hours = hoursFromNow(slot.at).toFixed(1);
+      console.log(`  ${availIcon} - ${slot.day_of_week} ${slot.time} - ${slot.activity_name} (in ${hours}h)`);
       console.log(`    Status: ${slot.status}`);
-      console.log(`    Location: ${slot.club_name} / ${slot.studio_name}`);
     }
 
     return timeFilteredSlots;
@@ -306,113 +284,27 @@ export class ResamaniaSlotBooker {
   }
 
   /**
-   * Parse slot date and time into a Date object
+   * Check if slot meets time constraints using configured min/max values
    */
-  private parseSlotDateTime(slot: SlotInfo): Date | null {
-    try {
-      // Parse the date string (e.g., "Monday 25 November")
-      // The format appears to be: "DayOfWeek DD Month" or "DayOfWeek DD"
-      const dateStr = slot.date.trim();
-      const timeStr = slot.time.trim();
-
-      // Extract day and month from the date string
-      const dateMatch = dateStr.match(/(\d{1,2})(?:\s+(\w+))?/);
-      if (!dateMatch) {
-        console.warn(`Could not parse date: ${dateStr}`);
-        return null;
-      }
-
-      const day = parseInt(dateMatch[1], 10);
-      const monthName = dateMatch[2];
-
-      // Parse time (e.g., "12:30")
-      const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
-      if (!timeMatch) {
-        console.warn(`Could not parse time: ${timeStr}`);
-        return null;
-      }
-
-      const hour = parseInt(timeMatch[1], 10);
-      const minute = parseInt(timeMatch[2], 10);
-
-      // Create date object
-      const now = new Date();
-      const slotDate = new Date();
-      slotDate.setHours(hour, minute, 0, 0);
-
-      // If month name is provided, use it
-      if (monthName) {
-        const monthMap: { [key: string]: number } = {
-          'january': 0, 'february': 1, 'march': 2, 'april': 3,
-          'may': 4, 'june': 5, 'july': 6, 'august': 7,
-          'september': 8, 'october': 9, 'november': 10, 'december': 11
-        };
-        const month = monthMap[monthName.toLowerCase()];
-        if (month !== undefined) {
-          slotDate.setMonth(month);
-          slotDate.setDate(day);
-
-          // If the date is in the past, it must be next year
-          if (slotDate < now) {
-            slotDate.setFullYear(slotDate.getFullYear() + 1);
-          }
-        }
-      } else {
-        // No month provided, use day of week to calculate the correct date
-        // Map day of week to day number (0 = Sunday, 6 = Saturday)
-        const dayOfWeekMap: { [key: string]: number } = {
-          'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
-          'thursday': 4, 'friday': 5, 'saturday': 6
-        };
-
-        const targetDayOfWeek = dayOfWeekMap[slot.day_of_week.toLowerCase()];
-
-        if (targetDayOfWeek !== undefined) {
-          // Calculate days until the target day of week
-          const currentDayOfWeek = now.getDay();
-          let daysUntil = targetDayOfWeek - currentDayOfWeek;
-
-          // If the target day is today or in the past this week, it must be next week
-          if (daysUntil < 0) {
-            daysUntil += 7;
-          } else if (daysUntil === 0) {
-            // Same day of week - check if the time has passed
-            const todayAtSlotTime = new Date();
-            todayAtSlotTime.setHours(hour, minute, 0, 0);
-            if (todayAtSlotTime < now) {
-              // Time has passed today, must be next week
-              daysUntil = 7;
-            }
-          }
-
-          // Set the date to the calculated future date
-          slotDate.setDate(now.getDate() + daysUntil);
-
-          // Verify the day number matches if we can
-          if (day && slotDate.getDate() !== day) {
-            // The day number doesn't match this week, try next week
-            slotDate.setDate(now.getDate() + daysUntil + 7);
-
-            // If still doesn't match, log warning but use what we calculated
-            if (slotDate.getDate() !== day) {
-              console.warn(`Date mismatch: expected day ${day}, got ${slotDate.getDate()} for ${slot.day_of_week}`);
-            }
-          }
-        } else {
-          // Fallback: just use the day number
-          slotDate.setDate(day);
-
-          // If the date is in the past, assume it's next month
-          if (slotDate < now) {
-            slotDate.setMonth(slotDate.getMonth() + 1);
-          }
-        }
-      }
-
-      return slotDate;
-    } catch (error) {
-      console.warn(`Error parsing slot date/time: ${error}`);
-      return null;
+  private meetsTimeConstraints(slot: SlotInfo): boolean {
+    const slotDate = slot.at;
+    if (!slotDate) {
+      console.warn(`Skipping slot due to unparseable date: ${slot.date} ${slot.time}`);
+      return false;
     }
+
+    if (!checkTimeConstraints(slotDate, this.minHoursFromNow, this.maxDaysFromNow)) {
+      const hours = hoursFromNow(slotDate);
+      const days = daysFromNow(slotDate);
+
+      if (hours < this.minHoursFromNow) {
+        console.log(`  ⊘ Skipping ${slot.activity_name} (${slot.day_of_week} ${slot.time}) - too soon (${hours.toFixed(1)}h < ${this.minHoursFromNow}h)`);
+      } else if (days > this.maxDaysFromNow) {
+        console.log(`  ⊘ Skipping ${slot.activity_name} (${slot.day_of_week} ${slot.time}) - too far (${days.toFixed(1)}d > ${this.maxDaysFromNow}d)`);
+      }
+      return false;
+    }
+
+    return true;
   }
 }

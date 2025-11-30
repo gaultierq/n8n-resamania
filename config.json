@@ -57,7 +57,9 @@
     "retry_attempts": 3,
     "retry_delay_seconds": 5,
     "headless": true,
-    "slow_mo": 100
+    "slow_mo": 100,
+    "min_hours_from_now": 6,
+    "max_days_from_now": 4
   },
   "notification_settings": {
     "notify_on_success": true,
