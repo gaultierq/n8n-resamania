@@ -10,7 +10,7 @@ import {
   meetsTimeConstraints as checkTimeConstraints,
   hoursFromNow,
   daysFromNow,
-} from './utils'
+} from './utils.js'
 
 export interface SlotInfo {
   activity_name: string;
