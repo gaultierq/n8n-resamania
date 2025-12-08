@@ -246,8 +246,7 @@ export class ResamaniaSlotBooker {
           }
         } else {
           console.log('  ⚠ No toast message detected - booking status unknown');
-          // Assume success if no error
-          bookedCount++;
+          // bookedCount++;
         }
 
       } catch (error) {
